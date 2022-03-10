@@ -1,0 +1,153 @@
+#define BLYNK_PRINT Serial
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+#include<DallasTemperature.h>
+#include <OneWire.h>
+#define ONE_WIRE_BUS 2 // DS18B20 
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature DS18B20(&oneWire);
+float temp;
+BlynkTimer timer;
+
+int relay1State = LOW;
+int relay2State = LOW;
+int relay3State = LOW;
+int relay4State = LOW;
+int wifisignal;
+int LED1 = LOW;
+
+#define AUTH "**********"    
+#define WIFI_SSID "******"                   
+#define WIFI_PASS "****"                  
+#define SERVER "blynk-cloud.com"
+
+// Comment-out if use Blynk hosted cloud service
+#define PORT 8442
+
+
+#define RELAY_PIN_1      5
+#define RELAY_PIN_2      4
+#define RELAY_PIN_3      14
+#define RELAY_PIN_4      12
+
+
+#define VPIN_BUTTON_1    V1
+#define VPIN_BUTTON_2    V2
+#define VPIN_BUTTON_3    V3
+#define VPIN_BUTTON_4    V4
+#define LED1 13
+
+BLYNK_CONNECTED() {
+
+  // Request the latest state from the server
+
+  Blynk.syncVirtual(VPIN_BUTTON_1);
+  Blynk.syncVirtual(VPIN_BUTTON_2);
+  Blynk.syncVirtual(VPIN_BUTTON_3);
+  Blynk.syncVirtual(VPIN_BUTTON_4);
+
+  // Alternatively, you could override server state using:
+  // Blynk.virtualWrite(VPIN_BUTTON_1, relay1State);
+  // Blynk.virtualWrite(VPIN_BUTTON_2, relay2State);
+  // Blynk.virtualWrite(VPIN_BUTTON_3, relay3State);
+  // Blynk.virtualWrite(VPIN_BUTTON_4, relay4State);
+
+}
+
+
+
+BLYNK_WRITE(VPIN_BUTTON_1) {
+  relay1State = param.asInt();
+  digitalWrite(RELAY_PIN_1, relay1State);
+}
+
+BLYNK_WRITE(VPIN_BUTTON_2) {
+  relay2State = param.asInt();
+  digitalWrite(RELAY_PIN_2, relay2State);
+}
+BLYNK_WRITE(VPIN_BUTTON_3) {
+  relay3State = param.asInt();
+  digitalWrite(RELAY_PIN_3, relay3State);
+}
+BLYNK_WRITE(VPIN_BUTTON_4) {
+  relay4State = param.asInt();
+  digitalWrite(RELAY_PIN_4, relay4State);
+}
+
+void checkBlynk() { 
+  bool isconnected = Blynk.connected();
+  if (isconnected == false) {
+    digitalWrite(LED1, LOW);
+  }
+
+  if (isconnected == true) {
+    digitalWrite(LED1, HIGH);
+
+  }
+
+}
+
+void setup()
+{
+  Serial.println("Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.begin(115200);
+  Blynk.begin(AUTH, WIFI_SSID, WIFI_PASS, "blynk-cloud.com", 8442);
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Couldn't get a wifi connection");
+    while(true);
+  }
+  // if you are connected, print out info about the connection:
+  else {
+   // print the received signal strength:
+  long rssi = WiFi.RSSI();
+  Serial.print("RSSI:");
+  Serial.println(rssi);
+  }
+  
+
+  pinMode(RELAY_PIN_1, OUTPUT);
+  digitalWrite(RELAY_PIN_1, relay1State);
+
+  pinMode(RELAY_PIN_2, OUTPUT);
+  digitalWrite(RELAY_PIN_2, relay2State);
+
+  pinMode(RELAY_PIN_3, OUTPUT);
+  digitalWrite(RELAY_PIN_3, relay3State);
+
+  pinMode(RELAY_PIN_4, OUTPUT);
+  digitalWrite(RELAY_PIN_4, relay4State);
+
+  pinMode(LED1, OUTPUT);
+  digitalWrite(LED1, HIGH);
+  delay(500);
+  digitalWrite(LED1, LOW);
+  delay(500);
+  digitalWrite(LED1, HIGH);
+  delay(500);
+  digitalWrite(LED1, LOW);
+  delay(500);
+  digitalWrite(LED1, HIGH);
+  delay(500);
+  digitalWrite(LED1, LOW);
+  timer.setInterval(3000L, checkBlynk);
+  timer.setInterval(15000L, sendWifi);
+  timer.setInterval(2000L, getSendData);
+}
+void getSendData()
+{
+  DS18B20.requestTemperatures(); 
+  temp = DS18B20.getTempCByIndex(0);
+  Serial.println(temp);
+  Blynk.virtualWrite(V6, temp); //virtual pin V10
+}
+void sendWifi() {
+  wifisignal = map(WiFi.RSSI(), -105, -40, 0, 100);
+  Blynk.virtualWrite(V5, wifisignal);
+}
+void loop()
+{
+  Blynk.run();
+  timer.run();
+}
